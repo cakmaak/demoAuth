@@ -1,0 +1,24 @@
+# IntelliJ / IDE
+.idea/
+*.iml
+.vscode/
+
+# Java / Maven
+**/target/
+*.log
+
+# React / Node
+**/node_modules/
+**/dist/
+
+# Keycloak runtime database
+keycloak-data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment / secrets
+.env
+.env.*
+!.env.example

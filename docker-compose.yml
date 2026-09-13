@@ -1,0 +1,79 @@
+services:
+
+  postgres:
+    image: postgres:17
+    container_name: demoauth-postgres-compose
+    environment:
+      POSTGRES_DB: demoauth
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5435:5432"
+
+    volumes:
+      - demoauth_postgres_data:/var/lib/postgresql/data
+      - ./demoauth-seed.sql:/docker-entrypoint-initdb.d/01-demoauth-seed.sql:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d demoauth"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.2
+    container_name: demoauth-keycloak
+
+    command: start-dev --import-realm
+
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+
+    ports:
+      - "8081:8080"
+
+    volumes:
+      - ./keycloak-export/demo-realm-realm.json:/opt/keycloak/data/import/demo-realm-realm.json:ro
+
+  backend:
+    build:
+      context: ./demoauth
+      dockerfile: Dockerfile
+
+    container_name: demoauth-backend
+
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/demoauth
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      KEYCLOAK_ISSUER_URI: http://localhost:8081/realms/demo-realm
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/demo-realm/protocol/openid-connect/certs
+
+    ports:
+      - "8080:8080"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./demoauth-ui
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8080
+        VITE_KEYCLOAK_URL: http://localhost:8081
+
+    container_name: demoauth-frontend
+
+    ports:
+      - "5173:80"
+
+    depends_on:
+      - backend
+      - keycloak
+
+
+volumes:
+  demoauth_postgres_data:
